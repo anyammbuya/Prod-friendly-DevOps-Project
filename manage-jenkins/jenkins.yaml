@@ -23,17 +23,6 @@ tool:
     installations:
       - name: "Java-21"
         home: "/usr/lib/jvm/java-21-amazon-corretto.x86_64"
-# This was the case where i deployed to tomcat server running on ec2 
-credentials:
-  system:
-    domainCredentials:
-      - credentials:
-          - usernamePassword:
-              scope: GLOBAL
-              id: "tomd"
-              description: "Deployer credential for Tomcats"
-              username: "deployer"
-              password: "${TOMCAT_PASS}" 
               
 # This seed job tells us where the groovy script is. 
 # When a git push to maven-project-webapp repo happens, the job runs 
