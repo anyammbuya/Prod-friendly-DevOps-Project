@@ -14,4 +14,3 @@ credentials-binding:702.vfe613e537e88
 pipeline-maven:1567.vb_2c3a_2116860
 aws-secrets-manager-credentials-provider:1.214.va_0a_d8268d068
 job-dsl:1.93
-publish-over-ssh

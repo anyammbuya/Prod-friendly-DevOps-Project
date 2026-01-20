@@ -18,6 +18,8 @@ The rest are listed in the plugins.txt file
 
 The workflow is illustrated in the diagram below.
 
+![cicd](cicd.png)
+
 
 ## The terraform configuration provisions the following resources
 
