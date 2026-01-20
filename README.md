@@ -79,8 +79,7 @@ kms key and policy
 1. Generate an SSH key pair with ssh-keygen -t ed25519 -C webapp-repo-key
 2. Go to github deploy keys and add the public ssh key
 3. Add a title and and click add key
-
-Now open the terraform config and paste the private ssh key to /modules/secrets_manager/id_rsa 
+4. Now open the terraform config and paste the private ssh key to /modules/secrets_manager/id_rsa 
 
 *Setup a fine-grained access token to be used for authentication when a webhook is triggered:  
 
