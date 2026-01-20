@@ -74,7 +74,7 @@ kms key and policy
 4. Which events would you like to trigger this webhook? Just the push event.
 5. Tick Active at the end then take save.
 
-*Setup a private deploy key used by Jenkins EC2 to access web project GitHub Y repo thus:
+* Setup a private deploy key used by Jenkins EC2 to access web project GitHub Y repo thus:
 
 1. Generate an SSH key pair with ssh-keygen -t ed25519 -C webapp-repo-key
 2. Go to github deploy keys and add the public ssh key
@@ -111,8 +111,10 @@ Follow these steps to realise the project
 3. Connect to the **k8sBootStrapHost** via SSM. Replace the vpc and subnet IDs in the deployment.yml file
    in /opt on the k8sBootstrapHost with the correct values. 
    Create a cluster with the command:
+   
    *eksctl create cluster -f /opt/cluster.yml*
-   Wait until you see "all EKS cluster resources for "my-eks-cluster" have been created". Then on the security group of nodes you MUST allow all traffic from the security group of the **k8sBootstrapHost**. This is necessary to list nodes with kubectl get nodes. Login to the AWS console to do that.
+   
+   Wait until you see "all EKS cluster resources for "my-eks-cluster" have been created". Then on the security group of nodes you MUST allow all traffic from the security group of the **k8sBootstrapHost**. This is necessary for kubectl commands to work. Login to the AWS console to do that.
 4. Edit a comment in the jenkins.yml and commit the change. This will create the seed job in Jenkins.
 5. Paste the Load balancer DNS name in the browse. Obtain the Jenkins password from secrets manager and 
    paste it in the password field. Username is admin. Ensure not to install any plugins because by this time plugins from the plugins.txt file have been installed. 
@@ -133,11 +135,19 @@ Follow these steps to realise the project
 ## Summary of traffic flow
 
 Client
+
   ↓  HTTP :80
+  
 AWS ALB (Ingress)
+
   ↓  HTTP :80
+  
 Service (ClusterIP) :80
+
   ↓
+  
 Pod IP :8080
+
   ↓
+  
 Container listens on :8080
