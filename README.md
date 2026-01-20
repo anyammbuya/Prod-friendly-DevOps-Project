@@ -3,17 +3,17 @@
 This project walks you through the process of constructing a DevOps CI/CD pipeline that can serve a production workload. It follows a microservice architecture where a JAVA web application is packaged as a Docker image with an embedded Tomcat server. This containerized image is deployed and managed as pods in a kubernetes cluster. IaC (with Terraform) and a lot of automation is used making the project truly reproducable. 
 The DevOps pipeline is realised by using:
 
-*git
-*Jenkins
-*Maven
-*Ansible
-*Docker
-*Kubernetes
+* git
+* Jenkins
+* Maven
+* Ansible
+* Docker
+* Kubernetes
 
 ## Plugins used in the setup
-*Jenkins Configuration as Code (JCasC)
-*Jenkins Plugins Manager
-*Session Manager Plugin
+* Jenkins Configuration as Code (JCasC)
+* Jenkins Plugins Manager
+* Session Manager Plugin
 The rest are listed in the plugins.txt file
 
 The workflow is illustrated in the diagram below.
@@ -64,9 +64,9 @@ kms key and policy
 ## Steps to reproduce this project
 
 ### Prereqisites
-*Create two **private** github repos Y and X. Y has the web application and the X is for managing the jekins server. The repo X contains jenkins.yml, plugins.txt and .github. The repo Y contains pom.xml, Jenkinsfile, src/main, jenkins/job.
+* Create two **private** github repos Y and X. Y has the web application and the X is for managing the jekins server. The repo X contains jenkins.yml, plugins.txt and .github. The repo Y contains pom.xml, Jenkinsfile, src/main, jenkins/job.
 
-*Setup a github webhook for the Y repo thus:
+* Setup a github webhook for the Y repo thus:
 
 1. Payload URL: http://{Load-Balancer-DNS}/github-webhook/
 2. Content type: application/json
@@ -81,7 +81,7 @@ kms key and policy
 3. Add a title and and click add key
 4. Now open the terraform config and paste the private ssh key to /modules/secrets_manager/id_rsa 
 
-*Setup a fine-grained access token to be used for authentication when a webhook is triggered:  
+* Setup a fine-grained access token to be used for authentication when a webhook is triggered:  
 
 1. Go to fine-grained token in github and click generate a new token
 2. Povide a token name, description, resource owner and choose "only selected repositories" under  
@@ -91,7 +91,7 @@ kms key and policy
      Read and Write access to code and repository hooks
 4. Click generate and copy the token, then open /modules/secrets_manager/webhookpat and paste it
 
-*Setup a fine-grained token for authentication to X github repo by Jenkins when downloading plugins file
+* Setup a fine-grained token for authentication to X github repo by Jenkins when downloading plugins file
 
 1. Follow step 1 above 
 2. Choose "only selected repositories" under  repository access and select the X repo.
@@ -100,10 +100,10 @@ kms key and policy
      Read access to code
 4.  Click generate and copy the token, then open /modules/secrets_manager/jenkins-ec2 and paste it.
 
-*Create a backend S3 bucket to store the terraform state file. The bucket name according terraform.tf file is jenkinsbackend.
-*Download the terraform config folder to your local machine.
-*Install terraform CLI and configure your CLI with your AWS Account access key.
-*Create a dockerhub account.
+* Create a backend S3 bucket to store the terraform state file. The bucket name according terraform.tf file is jenkinsbackend.
+* Download the terraform config folder to your local machine.
+* Install terraform CLI and configure your CLI with your AWS Account access key.
+* Create a dockerhub account.
 
 Follow these steps to realise the project
 1. Apply the terraform configuration.
