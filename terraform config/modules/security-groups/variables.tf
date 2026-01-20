@@ -1,0 +1,11 @@
+variable "vpc_id" {
+  
+}
+
+variable "tags" {
+  description = "vpc tags"
+}
+
+variable "cidr_blocks" {
+  description = "private subnet cidr_blocks"
+}

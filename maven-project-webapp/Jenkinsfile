@@ -1,0 +1,93 @@
+pipeline {
+    agent any
+
+    triggers {
+        githubPush()
+    }
+
+    tools {
+        maven 'Maven-3.9.11'   // Maven tool defined in JCasC
+        jdk 'Java-21'          // JDK defined in JCasC
+    }
+
+    environment {
+        AWS_REGION = 'us-west-2'
+        ANSIBLE_PLAYBOOK_PATH = '/etc/ansible/playbook.yml'
+        S3_BUCKET = 'zeus-ec2ssm-logsbu'
+    }
+ 
+    stages {
+        stage('Checkout') {
+            steps {
+                git branch: 'main',
+                    url: 'git@github.com:KingstonLtd/maven-project-webapp.git',
+                    credentialsId: 'github-ssh-key'
+            }
+        }
+
+        stage('Build') {
+            steps {
+                withMaven(maven: 'Maven-3.9.11') {
+                    sh 'mvn clean install'
+                }
+            }
+        }
+        
+        stage('Resolve ansible-host Instance ID') {
+            steps {
+                script {
+                    env.INSTANCE_ID = sh(
+                        script: """
+                            aws ec2 describe-instances \
+                                --filters "Name=tag:Name,Values=ansible-host" \
+                                          "Name=instance-state-name,Values=running" \
+                                --query "Reservations[].Instances[].InstanceId" \
+                                --output text \
+                                --region $AWS_REGION
+                        """,
+                        returnStdout: true
+                    ).trim()
+                }
+        
+                echo "Resolved ansible-host INSTANCE_ID = ${env.INSTANCE_ID}"
+            }
+        }
+        stage('Upload WAR') {
+            steps {
+                sh """
+
+                    aws s3 cp target/*.war s3://$S3_BUCKET/artifacts/my-webapp.war
+
+                """
+            }
+        }
+
+       stage('Build & Push Docker Image via Ansible on ansible-host') {
+            steps {
+                sh """
+
+                    # Run Ansible playbook remotely via SSM
+                    aws ssm send-command \
+                        --instance-ids "\$INSTANCE_ID" \
+                        --document-name "AWS-RunShellScript" \
+                        --comment "Run Docker build & push playbook" \
+                        --parameters 'commands=[
+                            "ansible-playbook $ANSIBLE_PLAYBOOK_PATH -i /etc/ansible/inventory_aws_ec2.yml"
+                        ]' \
+                        --output text
+                """
+            }
+        }
+
+    }
+
+    post {
+        success {
+            echo "Build, deploy, and Docker push completed successfully!"
+        }
+        failure {
+            echo "Build or deployment failed."
+        }
+    }
+}
+

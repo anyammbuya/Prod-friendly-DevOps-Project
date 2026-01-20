@@ -1,0 +1,184 @@
+#!/bin/bash
+set -e
+
+#-----------------------------------------------------------------------------
+# ---------------| Installs initial plugins using groovy script |------------------
+# ------------------------
+# Update OS and install dependencies
+# ------------------------
+dnf upgrade -y || yum update -y
+yum install -y wget git java-21-amazon-corretto
+
+# ------------------------
+# Install Maven manually into /opt
+# ------------------------
+MAVEN_VERSION=3.9.11
+cd /opt
+wget https://dlcdn.apache.org/maven/maven-3/${MAVEN_VERSION}/binaries/apache-maven-${MAVEN_VERSION}-bin.tar.gz
+tar -xvzf apache-maven-${MAVEN_VERSION}-bin.tar.gz
+mv apache-maven-${MAVEN_VERSION} maven
+rm -f apache-maven-${MAVEN_VERSION}-bin.tar.gz
+
+# ------------------------
+# Set environment variables
+# ------------------------
+cat <<'EOF' >> /etc/profile.d/maven.sh
+export M2_HOME=/opt/maven
+export M2=/opt/maven/bin
+export JAVA_HOME=/usr/lib/jvm/java-21-amazon-corretto.x86_64
+export PATH=$M2_HOME/bin:$JAVA_HOME/bin:$PATH
+EOF
+source /etc/profile.d/maven.sh
+
+# ------------------------
+# Install Jenkins
+# ------------------------
+wget -O /etc/yum.repos.d/jenkins.repo https://pkg.jenkins.io/redhat-stable/jenkins.repo
+rpm --import https://pkg.jenkins.io/redhat-stable/jenkins.io-2023.key
+yum install -y jenkins
+
+# ------------------------
+# Stop Jenkins if running
+# ------------------------
+systemctl stop jenkins || true
+
+# ---------------------------
+# Install aws cli
+# ---------------------------
+dnf install -y awscli
+
+# ---------------------------
+# Retrieve password from secrets manager
+# ---------------------------
+SECRET_NAME="jenkins-admin-password"
+AWS_REGION="us-west-2"
+ADMIN_PASSWORD=$(aws secretsmanager get-secret-value \
+  --secret-id "$SECRET_NAME" \
+  --region "$AWS_REGION" \
+  --query "SecretString" \
+  --output text)
+  
+if [ -z "$ADMIN_PASSWORD" ]; then
+    echo "Error: Failed to retrieve ADMIN_PASSWORD from Secrets Manager"
+    exit 1
+fi
+
+# ------------------------
+# Empty Jenkins home and create directories
+# ------------------------
+rm -rf /var/lib/jenkins/*
+mkdir -p /var/lib/jenkins/init.groovy.d
+mkdir -p /var/lib/jenkins/plugins
+
+# ------------------------
+# CRITICAL: Create admin user via init.groovy.d (NOT JCasC)
+# ------------------------
+cat <<EOF > /var/lib/jenkins/init.groovy.d/01-create-admin.groovy
+import jenkins.model.*
+import hudson.security.*
+import jenkins.install.InstallState
+
+// Get Jenkins instance
+def instance = Jenkins.get()
+
+// Create local security realm with admin user
+def hudsonRealm = new HudsonPrivateSecurityRealm(false)
+hudsonRealm.createAccount('admin', '${ADMIN_PASSWORD}')
+instance.setSecurityRealm(hudsonRealm)
+
+// Use simpler authorization that's guaranteed to work
+def strategy = new FullControlOnceLoggedInAuthorizationStrategy()
+strategy.setAllowAnonymousRead(false)
+instance.setAuthorizationStrategy(strategy)
+
+// Disable setup wizard
+instance.setInstallState(InstallState.INITIAL_SETUP_COMPLETED)
+
+// Save configuration
+instance.save()
+EOF
+
+# ------------------------
+# Install initial plugins via groovy script during startup
+# ------------------------
+cat <<'EOF' > /var/lib/jenkins/init.groovy.d/02-install-plugins.groovy
+import jenkins.model.Jenkins
+import hudson.model.UpdateCenter
+import java.util.logging.Logger
+
+def logger = Logger.getLogger("init.groovy.d.install-plugins")
+def jenkins = Jenkins.getInstance()
+def pm = jenkins.getPluginManager()
+def uc = jenkins.getUpdateCenter()
+
+logger.info("Checking for required plugins...")
+
+// List of plugins to install
+def pluginsToInstall = ['configuration-as-code', 'git', 'maven-plugin']
+
+// A list to collect which plugins are missing
+def missing = pluginsToInstall.findAll { pluginShortName ->
+    pm.getPlugin(pluginShortName) == null
+}
+
+if (missing) {
+
+    logger.info("Missing plugins: ${missing}")
+
+    // Trigger update site data refresh, in case UpdateCenter doesn't have fresh metadata
+    // Note: this may block or need internet, so ensure Jenkins can reach update sites
+    uc.getSites().each { site ->
+        try {
+            site.updateDirectlyNow(false)  // false = do not force, or true depending
+        } catch (Exception e) {
+            logger.warning("Failed to update site ${site}: ${e}")
+        }
+    }
+
+    // Install missing plugins
+    missing.each { pluginShortName ->
+        def plugin = uc.getPlugin(pluginShortName)
+        if (plugin == null) {
+            logger.warning("Plugin ${pluginShortName} not found in UpdateCenter. Skipping.")
+        } else {
+            logger.info("Installing plugin: ${pluginShortName}")
+            def installFuture = plugin.deploy(true)  // true = dynamic load if possible
+            // Wait for the deployment to finish
+            installFuture.get()
+        }
+    }
+
+    // Save the state
+    jenkins.save()
+
+    // After installation, restart safely so plugin dependencies are properly loaded
+    logger.info("Restarting Jenkins to apply new plugins...")
+    jenkins.safeRestart()
+
+} else {
+    logger.info("All required plugins are already installed; no restart needed.")
+}
+
+EOF
+
+# ------------------------
+# Set permissions
+# ------------------------
+chown -R jenkins:jenkins /var/lib/jenkins
+chmod 755 /var/lib/jenkins
+
+# ------------------------
+# Set JCasC environment variable
+# ------------------------
+echo 'CASC_JENKINS_CONFIG=/var/lib/jenkins/jenkins.yaml' >> /etc/sysconfig/jenkins
+
+# ------------------------
+# Start Jenkins and wait for it to be ready
+# ------------------------
+systemctl enable jenkins
+systemctl start jenkins
+
+echo "Waiting for Jenkins to start..."
+
+# cat /var/log/cloud-init-output.log   see logs on ec2
+# journalctl -u jenkins    see logs on jenkins application server

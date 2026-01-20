@@ -1,0 +1,68 @@
+unclassified:
+  location:
+    url: "http://localhost:8080/"
+  # configure github webhook. Here i used the aws-secrets-manager-credentials-provider plugin
+  # to provide the credential
+  githubpluginconfig:
+    configs:
+      - name: "GitHub-hook"
+        apiUrl: "https://api.github.com"
+        credentialsId: "github_webhook_pat"
+        manageHooks: true
+
+tool:
+  maven:
+    installations:
+      - name: "Maven-3.9.11"
+        home: "/opt/maven"
+  git:
+    installations:
+      - name: "Git"
+        home: "git"
+  jdk:
+    installations:
+      - name: "Java-21"
+        home: "/usr/lib/jvm/java-21-amazon-corretto.x86_64"
+# This was the case where i deployed to tomcat server running on ec2 
+credentials:
+  system:
+    domainCredentials:
+      - credentials:
+          - usernamePassword:
+              scope: GLOBAL
+              id: "tomd"
+              description: "Deployer credential for Tomcats"
+              username: "deployer"
+              password: "${TOMCAT_PASS}" 
+              
+# This seed job tells us where the groovy script is. 
+# When a git push to maven-project-webapp repo happens, the job runs 
+# and generates the pipeline job from the groovy script. The jenkins server will require that the 
+# user authorizes the creation of the pipeline job. So we always see "authorization required" when we
+# we first push to maven-project-webapp.
+
+jobs:
+  - script: >
+      job('seed-job') {
+          description('Scans DSL scripts from maven-project-webapp repo and creates pipeline jobs automatically.')
+          scm {
+              git {
+                  remote {
+                      url('git@github.com:KingstonLtd/maven-project-webapp.git')
+                      credentials('github-ssh-key')
+                  }
+                  branch('main')
+              }
+          }
+          triggers {
+              githubPush() // run whenever DSL repo changes
+          }
+          steps {
+              dsl {
+                  external('jenkins/jobs/**/*.groovy')
+                  removeAction('DISABLE')
+                  ignoreExisting(false)
+                  lookupStrategy('JENKINS_ROOT')
+              }
+          }
+      }
