@@ -24,7 +24,7 @@ The DevOps pipeline is realised by using:
 
 The rest are listed in the plugins.txt file
 
-The userdata scripts of Jenkins, Ansible and K8sbootstrap servers found under the launch template module is embedded with bash and yaml scripts that make this project realisable. One must go through to understand how everything works behind the scenes.
+The userdata scripts of Jenkins, Ansible and K8sbootstrap servers found in the launch template module is embedded with bash and yaml scripts that make this project realisable. One must go through to understand how everything works behind the scenes.
 
 The workflow is illustrated in the diagram below.
 
@@ -142,7 +142,7 @@ Follow these steps to realise the project
    in the browser to access it. Entering {ALB-DNS-NAME} displays the tomcat server hosting the web app.
 
 10. Clean up by first running "*eksctl delete cluster --name my-eks-cluster --region {AWS-REGION}*. The 
-   destroy the infrastructure with terraform destroy. Also delete the IAM policy `AWSLoadBalancerControllerIAMPolicy`
+    destroy the infrastructure with terraform destroy. Also delete the IAM policy `AWSLoadBalancerControllerIAMPolicy`
 
 ## Summary of traffic flow
 
@@ -187,11 +187,11 @@ The k8s_bootstrapSetup.sh in the launch-template module has some of the files an
 
 Create IAM role for worker nodes to have the following permissions:
 
-AmazonEKSWorkerNodePolicy
+* AmazonEKSWorkerNodePolicy
 
-AmazonEC2ContainerRegistryPullOnly
+* AmazonEC2ContainerRegistryPullOnly
 
-AmazonEKS_CNI_Policy 
+* AmazonEKS_CNI_Policy 
 
 In this case the permissions are attached to the kubectl-role according to nodeclass.yml file
 
@@ -205,9 +205,9 @@ During the creation of the cluster ensure that the k8s bootstrap host can access
 
 Public subnets must be tagged thus:
 
-kubernetes.io/role/elb: 1
+* kubernetes.io/role/elb: 1
 
-kubernetes.io/cluster/my-eks-cluster: shared
+* kubernetes.io/cluster/my-eks-cluster: shared
 
 These tags will help the alb controller to choose the appropriate subnet to provision the alb.
 
