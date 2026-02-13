@@ -1,0 +1,17 @@
+apiVersion: eks.amazonaws.com/v1
+kind: NodeClass
+metadata:
+  name: private-compute
+spec:
+  role: "kubectl-role"
+  subnetSelectorTerms:
+    - tags:
+        Name: "private-subnet"
+        kubernetes.io/role/internal-elb: "1"
+  securityGroupSelectorTerms:
+    - tags:
+        Name: "eks-cluster-sg"
+  ephemeralStorage:
+    size: "20Gi"
+  advancedNetworking:
+    associatePublicIPAddress: false

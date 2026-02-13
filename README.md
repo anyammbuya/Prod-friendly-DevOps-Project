@@ -1,10 +1,17 @@
 # A production-friendly DevOps Project
 
 This project walks you through the process of constructing a DevOps CI/CD pipeline that can serve a production workload. It follows a microservice architecture where a JAVA web application is packaged as a Docker image with an embedded Tomcat server. This containerized image is deployed and managed as pods in a kubernetes cluster. IaC (with Terraform) and a lot of automation is used making the project truly reproducable. 
+
+Note
+
+The steps outlined below are steps to create a cluster with autoModeConfig disabled. To create a cluster
+with autoModeConfig enabled, scroll down after "Summary of traffic flow" where i have outlined some steps and provided files that can be used to achieve that.
+
+
 The DevOps pipeline is realised by using:
 
 * git
-* Jenkins
+* Jenkins 
 * Maven
 * Ansible
 * Docker
@@ -14,7 +21,10 @@ The DevOps pipeline is realised by using:
 * Jenkins Configuration as Code (JCasC)
 * Jenkins Plugins Manager
 * Session Manager Plugin
+
 The rest are listed in the plugins.txt file
+
+The userdata scripts of Jenkins, Ansible and K8sbootstrap servers found under the launch template module is embedded with bash and yaml scripts that make this project realisable. One must go through to understand how everything works behind the scenes.
 
 The workflow is illustrated in the diagram below.
 
@@ -120,18 +130,18 @@ Follow these steps to realise the project
 4. Edit a comment in the jenkins.yml and commit the change. This will create the seed job in Jenkins.
 5. Paste the Load balancer DNS name in the browse. Obtain the Jenkins password from secrets manager and 
    paste it in the password field. Username is admin. Ensure not to install any plugins because by this time plugins from the plugins.txt file have been installed. 
-5. Edit a comment in the Webapp project and commit the change. Jenkins will run the job but will fail.  
+6. Edit a comment in the Webapp project and commit the change. Jenkins will run the job but will fail.  
    You will have to approve the creation of the webapp-pipeline job by going to settings in jenkins.
-6. Try step 5 again. See that the webapp-pipline job is created in Jenkins.
-7. Try step 5 again. That's it. The Jenkinsfile will execute, building and deploying the web app on 
-   kubernetes. 
-8. Access this webapp running on the pods in the cluster by using the application load balancer created 
+7. Try the first statement in step 6 again. See that the webapp-pipline job is created in Jenkins.
+8. Try the first statement in step 6 again. That's it. The Jenkinsfile will execute, building and 
+   deploying the web app on kubernetes. 
+9. Access this webapp running on the pods in the cluster by using the application load balancer created 
    by the AWS load balancer controller. You can get DNS name for the load balancer by running:
    *kubectl get ingress webapp-ingress* on **k8sBootstrapHost**. After that type:
    {ALB-DNS-NAME}/my-webapp 
    in the browser to access it. Entering {ALB-DNS-NAME} displays the tomcat server hosting the web app.
 
-9. Clean up by first running "*eksctl delete cluster --name my-eks-cluster --region {AWS-REGION}*. The 
+10. Clean up by first running "*eksctl delete cluster --name my-eks-cluster --region {AWS-REGION}*. The 
    destroy the infrastructure with terraform destroy. Also delete the IAM policy `AWSLoadBalancerControllerIAMPolicy`
 
 ## Summary of traffic flow
@@ -153,3 +163,57 @@ Pod IP :8080
   ↓
   
 Container listens on :8080
+
+## Create a cluster with autoModeConfig enabled
+These file listed below are needed on the k8sBootStrapHost. 
+
+cluster.yml 
+
+access_entry.sh
+
+nodeclass.yml
+
+nodepool.yml
+
+deployment.yml
+
+service.yml
+
+ingressclass.yml
+
+ingress.yml
+
+The k8s_bootstrapSetup.sh in the launch-template module has some of the files and cluster.yml and deployment.yml which are there will need updates. Whereas this repo has the rest.
+
+Create IAM role for worker nodes to have the following permissions:
+
+AmazonEKSWorkerNodePolicy
+
+AmazonEC2ContainerRegistryPullOnly
+
+AmazonEKS_CNI_Policy 
+
+In this case the permissions are attached to the kubectl-role according to nodeclass.yml file
+
+Create a security group for the nodepool and give it the tag below as in the nodeclass.yml file:
+
+Name: eks-cluster-sg
+
+Replace the vpc id and subnet id in cluster.yml with the appropriate ones, apply then configuration. 
+
+During the creation of the cluster ensure that the k8s bootstrap host can access resource of the cluster by creating an ingress rule in the security group of the cluster to accept traffic from the security group of the k8sBootStrapHost.
+
+Public subnets must be tagged thus:
+
+kubernetes.io/role/elb: 1
+
+kubernetes.io/cluster/my-eks-cluster: shared
+
+These tags will help the alb controller to choose the appropriate subnet to provision the alb.
+
+Edit the playbook on ansible to deploy container on cluster by executing the files list above in the given order in which they are listed.
+
+
+
+
+

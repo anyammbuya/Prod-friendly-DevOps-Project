@@ -1,0 +1,26 @@
+apiVersion: eksctl.io/v1alpha5
+kind: ClusterConfig
+
+metadata:
+  name: my-eks-cluster
+  region: us-west-2
+  version: "1.34"
+
+vpc:
+  id: "vpc-07959dac5e0c2bc8b"
+  subnets:
+    private:
+      us-west-2a:
+          id: "subnet-07f82ffebb50b3c76"
+      us-west-2b:
+          id: "subnet-0fbc941c711ea1845"
+  clusterEndpoints:
+    publicAccess: true
+    privateAccess: false
+
+  nat:
+    gateway: Disable
+
+autoModeConfig:
+    enabled: true
+    nodePools: []

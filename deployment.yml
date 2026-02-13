@@ -1,0 +1,38 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: webapp-deployment
+  labels:
+    app: mywebapp
+spec:
+  replicas: 3
+  selector:
+    matchLabels:
+      app: mywebapp
+  template:
+    metadata:
+      labels:
+        app: mywebapp
+    spec:
+      # CRITICAL: This links the deployment to your NodePool
+      nodeSelector:
+        app: mywebapp
+      containers:
+      - name: mywebapp
+        image: anyammbuya/mywebapp:v1
+        imagePullPolicy: Always
+        ports:
+        - containerPort: 8080
+        # Right-sizing for t4g.medium (2vCPU / 4GB)
+        resources:
+          requests:
+            cpu: "250m"      # 0.25 vCPU for each pod
+            memory: "512Mi"  # 0.5 GiB for each pod
+          limits:
+            cpu: "500m"      
+            memory: "1Gi"
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxSurge: 1
+      maxUnavailable: 1
